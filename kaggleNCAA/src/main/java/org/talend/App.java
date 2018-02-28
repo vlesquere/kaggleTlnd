@@ -8,75 +8,50 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collector;
 import java.util.stream.Stream;
 
 /**
- * Hello world!
  */
 public class App {
     private static final String CSV_SPLIT_BY = ",";
 
     public static void main(String[] args) {
+
+        // read CSV Data Files
         Map<String, String> teams = getTeams();
         List<String[]> results = getResults();
 
+        // Init
         Map<String, Map<String, Integer>> nbVictories = new HashMap<>();
         Map<String, Map<String, Integer>> nbDefeats = new HashMap<>();
 
+        // Count Match type
         results.forEach(result -> {
             String season = result[0];
             String winTeam = result[2];
             String looseTeam = result[4];
 
-            Map<String, Integer> yearAndVictory = nbVictories.get(winTeam);
-            if(yearAndVictory == null) {
-                yearAndVictory = new HashMap<>();
-            }
-
-            Integer nbVictory = yearAndVictory.get(season);
-            if (nbVictory == null) {
-                nbVictory = 1;
-            } else {
-                nbVictory += 1;
-            }
-            yearAndVictory.put(season, nbVictory);
-            nbVictories.put(winTeam, yearAndVictory);
-
-            Map<String, Integer> yearAndDefeat = nbDefeats.get(looseTeam);
-            if(yearAndDefeat == null) {
-                yearAndDefeat = new HashMap<>();
-            }
-            Integer nbLoose = yearAndDefeat.get(season);
-            if (nbLoose == null) {
-                nbLoose = 1;
-            } else {
-                nbLoose += 1;
-            }
-            yearAndDefeat.put(season, nbLoose);
-            nbDefeats.put(looseTeam, yearAndDefeat);
+            countResultTypeMatch(nbVictories, season, winTeam);
+            countResultTypeMatch(nbDefeats, season, looseTeam);
         });
 
         teams.forEach((teamId, teamName) -> {
 
-            Map<String, Integer> victories = nbVictories.get(teamId);
-            Map<String, Integer> defeats = nbDefeats.get(teamId);
-
             Map<String, Integer> nbGames = new HashMap<>();
-            if (victories != null)
-                nbGames.putAll(victories);
 
-            if (defeats != null)
-            defeats.forEach((year, nbDefeat) -> {
-                if (nbGames.get(year) == null)
-                    nbGames.put(year, nbDefeat);
-                else
-                    nbGames.put(year, nbGames.get(year) + nbDefeat);
+            if (nbVictories.containsKey(teamId))
+                nbGames.putAll(nbVictories.get(teamId));
+
+            if (nbDefeats.containsKey(teamId))
+                nbDefeats.get(teamId).forEach((year, nbDefeat) -> {
+                nbGames.computeIfPresent(year, (key, nbMatch) -> nbMatch + nbDefeat);
+                nbGames.putIfAbsent(year, nbDefeat);
             });
 
             nbGames.forEach((year, nbGame) -> {
                 int nbVictory = nbVictories.get(teamId).get(year) == null ? 0 : nbVictories.get(teamId).get(year);
                 int nbDefeat = nbDefeats.get(teamId).get(year) == null ? 0 : nbDefeats.get(teamId).get(year);
+
                 float ratio = 0;
                 if (nbGame != 0) {
                     ratio = (float) nbVictory / nbGame;
@@ -87,6 +62,18 @@ public class App {
         });
 
     }
+
+
+    private static void countResultTypeMatch(Map<String, Map<String, Integer>> mapResultsType, String season, String team) {
+        Map<String, Integer> yearAndResult = mapResultsType.getOrDefault(team, new HashMap<>());
+
+        Integer nbResultType = yearAndResult.get(season);
+        nbResultType = nbResultType == null ? 1 : nbResultType + 1;
+
+        yearAndResult.put(season, nbResultType);
+        mapResultsType.put(team, yearAndResult);
+    }
+
 
     private static Map<String, String> getTeams() {
         Map<String, String> teams = new HashMap<>();
